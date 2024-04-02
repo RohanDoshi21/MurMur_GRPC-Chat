@@ -7,22 +7,28 @@ services:
       - app.conf
     environment:
       RUNNING_IN_DOCKER: "true"
-    # depends_on:
-    #   - db_casdoor
+    depends_on:
+      - db_casdoor
     ports:
       - 9080:8000
 
-#   db_casdoor:
-#     image: postgres
-#     container_name: db_casdoor
-#     env_file:
-#       - app.conf
-#     working_dir: /
-#     volumes:
-#       - db-volume-casdoor:/var/lib/postgresql/data
-#     ports:
-#       - "5432:5432"
-#     restart: always
+  db_casdoor:
+    image: postgres:14.11
+    container_name: db_casdoor
+    env_file:
+      - app.conf
+    working_dir: /
+    volumes:
+      - db-volume-casdoor:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    ports:
+      - "5432:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-# volumes:
-#   db-volume-casdoor: {}
+volumes:
+  db-volume-casdoor: {}

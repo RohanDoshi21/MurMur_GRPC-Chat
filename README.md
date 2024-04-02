@@ -11,7 +11,7 @@ docker exec -it postgres psql -U postgres
 CREATE DATABASE casdoor;
 ```
 
-Starting casdoor docker container
+Starting casdoor & postgres docker container
 ```bash
 docker compose up -d
 ```
