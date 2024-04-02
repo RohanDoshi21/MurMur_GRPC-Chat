@@ -1,0 +1,28 @@
+services:
+  casdoor:
+    restart: always
+    image: 'casbin/casdoor:latest'
+    container_name: casdoor
+    env_file:
+      - app.conf
+    environment:
+      RUNNING_IN_DOCKER: "true"
+    # depends_on:
+    #   - db_casdoor
+    ports:
+      - 9080:8000
+
+#   db_casdoor:
+#     image: postgres
+#     container_name: db_casdoor
+#     env_file:
+#       - app.conf
+#     working_dir: /
+#     volumes:
+#       - db-volume-casdoor:/var/lib/postgresql/data
+#     ports:
+#       - "5432:5432"
+#     restart: always
+
+# volumes:
+#   db-volume-casdoor: {}
