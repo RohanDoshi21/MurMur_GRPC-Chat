@@ -12,6 +12,7 @@ type UserResponse struct {
 }
 
 func setupUserRoutes(router fiber.Router) {
+
 	// GET all users
 	router.Get("/", func(c *fiber.Ctx) error {
 		users, err := casdoorsdk.GetUsers()
@@ -20,6 +21,7 @@ func setupUserRoutes(router fiber.Router) {
 				"error": err.Error(),
 			})
 		}
+
 		userResponses := make([]UserResponse, len(users))
 
 		for i, user := range users {

@@ -10,6 +10,7 @@ import (
 )
 
 func setupTestRoutes(router fiber.Router) {
+
 	router.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
 	})
@@ -20,7 +21,7 @@ func setupTestRoutes(router fiber.Router) {
 			Receiver: "Rohit",
 			Content:  "Hello, World!",
 		}
-		err := message.Insert(context.Background(), db.CONN, boil.Infer())
+		err := message.Insert(context.Background(), db.PostgresConn, boil.Infer())
 		if err != nil {
 			return c.SendString(err.Error())
 		}
