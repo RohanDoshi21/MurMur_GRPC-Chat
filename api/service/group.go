@@ -193,13 +193,13 @@ func JoinGroup(groupBody *GroupJoinBody, dbTrx *sql.Tx) *T.ServiceError {
 
 }
 
-func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) *T.ServiceError {
+func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) (string, string, *T.ServiceError) {
 
 	ctx := context.Background()
 
 	isExist, err := M.GroupExists(ctx, dbTrx, addUserBody.GroupId)
 	if err != nil {
-		return &T.ServiceError{
+		return "", "", &T.ServiceError{
 			Code:    500,
 			Message: "Failed to fetch group",
 			Error:   err,
@@ -207,7 +207,7 @@ func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) *T.ServiceErro
 	}
 
 	if !isExist {
-		return &T.ServiceError{
+		return "", "", &T.ServiceError{
 			Code:    fiber.ErrBadRequest.Code,
 			Message: "Group not found",
 			Error:   err,
@@ -216,7 +216,7 @@ func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) *T.ServiceErro
 
 	group, err := models.Groups(models.GroupWhere.ID.EQ(addUserBody.GroupId)).One(ctx, dbTrx)
 	if err != nil {
-		return &T.ServiceError{
+		return "", "", &T.ServiceError{
 			Code:    fiber.ErrInternalServerError.Code,
 			Message: "Failed to fetch group",
 			Error:   err,
@@ -225,7 +225,7 @@ func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) *T.ServiceErro
 	for _, user := range addUserBody.UserId {
 		for _, groupUser := range group.Users {
 			if user == groupUser {
-				return &T.ServiceError{
+				return "", "", &T.ServiceError{
 					Code:    fiber.ErrBadRequest.Code,
 					Message: "User already in group",
 					Error:   nil,
@@ -244,13 +244,13 @@ func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) *T.ServiceErro
 	err = invite.Insert(ctx, dbTrx, boil.Infer())
 
 	if err != nil {
-		return &T.ServiceError{
+		return "", "", &T.ServiceError{
 			Code:    fiber.ErrInternalServerError.Code,
 			Message: "Failed to create invite",
 			Error:   err,
 		}
 	}
 
-	return nil
+	return invite.ID, group.ID, nil
 
 }

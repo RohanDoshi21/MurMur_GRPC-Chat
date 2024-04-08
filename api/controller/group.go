@@ -85,15 +85,14 @@ func AddUserToGroup(ctx *fiber.Ctx) error {
 
 	pgTrx := U.GetPGTrxFromFiberCtx(ctx)
 
-	err := S.AddUserToGroup(addUserBody, pgTrx)
+	invite, group_id, err := S.AddUserToGroup(addUserBody, pgTrx)
 	if err != nil {
 		H.BuildError(ctx, err.Message, fiber.ErrInternalServerError.Code, fiber.ErrInternalServerError)
 	}
 
-	H.Success(ctx, fiber.Map{
-		"ok": 1,
-	})
 	return H.Success(ctx, fiber.Map{
-		"ok": 1,
+		"ok":        1,
+		"invite_id": invite,
+		"group_id":  group_id,
 	})
 }
