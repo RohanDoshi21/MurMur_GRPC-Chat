@@ -27,6 +27,11 @@ type GroupJoinBody struct {
 	UserId  string `json:"user_id"`
 }
 
+type GroupAddUserBody struct {
+	GroupId string   `json:"group_id"`
+	UserId  []string `json:"user_id"`
+}
+
 func GetGroupDetails(groupBody *GroupBody, dbTrx *sql.Tx) (interface{}, *T.ServiceError) {
 
 	ctx := context.Background()
@@ -140,7 +145,7 @@ func JoinGroup(groupBody *GroupJoinBody, dbTrx *sql.Tx) *T.ServiceError {
 		}
 	}
 
-	inviteDetails, err := models.Invites(models.InviteWhere.GroupID.EQ(groupBody.GroupId)).One(ctx, dbTrx)
+	inviteDetails, err := models.Invites(models.InviteWhere.GroupID.EQ(groupBody.GroupId)).All(ctx, dbTrx)
 
 	if err != nil {
 		return &T.ServiceError{
@@ -150,26 +155,100 @@ func JoinGroup(groupBody *GroupJoinBody, dbTrx *sql.Tx) *T.ServiceError {
 		}
 	}
 	// if user in the invite list append the user to the group
-	for _, receiver := range inviteDetails.Receiver {
-		if receiver == groupBody.UserId {
-			group.Users = append(group.Users, groupBody.UserId)
-			_, err := group.Update(ctx, dbTrx, boil.Infer())
-			if err != nil {
+	for _, invite := range inviteDetails {
+		for _, receiver := range invite.Receiver {
+			if receiver == groupBody.UserId {
+				group.Users = append(group.Users, groupBody.UserId)
+				_, err := group.Update(ctx, dbTrx, boil.Infer())
+				if err != nil {
+					return &T.ServiceError{
+						Code:    fiber.ErrInternalServerError.Code,
+						Message: "Failed to update group",
+						Error:   err,
+					}
+				}
+				indexToRemove := U.FindIndex(invite.Receiver, receiver)
+				invite.Receiver = append(invite.Receiver[:indexToRemove], invite.Receiver[indexToRemove+1:]...)
+				_, err = invite.Update(ctx, dbTrx, boil.Infer())
+				if err != nil {
+					return &T.ServiceError{
+						Code:    fiber.ErrInternalServerError.Code,
+						Message: "Failed to update invite",
+						Error:   err,
+					}
+				}
+				return nil
+			} else {
 				return &T.ServiceError{
-					Code:    fiber.ErrInternalServerError.Code,
-					Message: "Failed to update group",
-					Error:   err,
+					Code:    fiber.ErrBadRequest.Code,
+					Message: "User not invited",
+					Error:   nil,
 				}
 			}
-			return nil
-		} else {
-			return &T.ServiceError{
-				Code:    fiber.ErrBadRequest.Code,
-				Message: "User not invited",
-				Error:   nil,
+
+		}
+	}
+
+	return nil
+
+}
+
+func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) *T.ServiceError {
+
+	ctx := context.Background()
+
+	isExist, err := M.GroupExists(ctx, dbTrx, addUserBody.GroupId)
+	if err != nil {
+		return &T.ServiceError{
+			Code:    500,
+			Message: "Failed to fetch group",
+			Error:   err,
+		}
+	}
+
+	if !isExist {
+		return &T.ServiceError{
+			Code:    fiber.ErrBadRequest.Code,
+			Message: "Group not found",
+			Error:   err,
+		}
+	}
+
+	group, err := models.Groups(models.GroupWhere.ID.EQ(addUserBody.GroupId)).One(ctx, dbTrx)
+	if err != nil {
+		return &T.ServiceError{
+			Code:    fiber.ErrInternalServerError.Code,
+			Message: "Failed to fetch group",
+			Error:   err,
+		}
+	}
+	for _, user := range addUserBody.UserId {
+		for _, groupUser := range group.Users {
+			if user == groupUser {
+				return &T.ServiceError{
+					Code:    fiber.ErrBadRequest.Code,
+					Message: "User already in group",
+					Error:   nil,
+				}
 			}
 		}
+	}
 
+	invite := &models.Invite{
+		ID:       U.UUID(),
+		GroupID:  addUserBody.GroupId,
+		Sender:   group.Owner,
+		Receiver: addUserBody.UserId,
+	}
+
+	err = invite.Insert(ctx, dbTrx, boil.Infer())
+
+	if err != nil {
+		return &T.ServiceError{
+			Code:    fiber.ErrInternalServerError.Code,
+			Message: "Failed to create invite",
+			Error:   err,
+		}
 	}
 
 	return nil

@@ -25,3 +25,11 @@ func GetPGTrxFromFiberCtx(ctx *fiber.Ctx) *sql.Tx {
 func UUID() string {
 	return uuid.Must(uuid.NewRandom()).String()
 }
+func FindIndex(slice []string, element string) int {
+	for i, value := range slice {
+		if value == element {
+			return i
+		}
+	}
+	return -1 // Return -1 if the element is not found in the slice
+}

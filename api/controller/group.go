@@ -78,3 +78,22 @@ func JoinGroup(ctx *fiber.Ctx) error {
 	})
 
 }
+
+func AddUserToGroup(ctx *fiber.Ctx) error {
+
+	addUserBody := ctx.Locals("body").(*S.GroupAddUserBody)
+
+	pgTrx := U.GetPGTrxFromFiberCtx(ctx)
+
+	err := S.AddUserToGroup(addUserBody, pgTrx)
+	if err != nil {
+		H.BuildError(ctx, err.Message, fiber.ErrInternalServerError.Code, fiber.ErrInternalServerError)
+	}
+
+	H.Success(ctx, fiber.Map{
+		"ok": 1,
+	})
+	return H.Success(ctx, fiber.Map{
+		"ok": 1,
+	})
+}
