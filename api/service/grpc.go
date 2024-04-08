@@ -81,6 +81,9 @@ func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageSer
 				Message:  message.Message,
 				Id:       messageUUID,
 			})
+
+			go SendNotification(message.Message, message.Reciever)
+
 			if err != nil {
 				log.Printf("Error sending message to %s: %v", message.Reciever, err)
 				continue
@@ -138,7 +141,12 @@ func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageSer
 					Receiver: userId,
 					Message:  message.Message,
 					Id:       messageUUID,
+					IsGroup:  true,
+					GroupId:  groupId,
 				})
+
+				go SendNotification(message.Message, userId)
+
 				if err != nil {
 					log.Printf("Error sending message to %s: %v", userId, err)
 					continue

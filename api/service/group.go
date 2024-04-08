@@ -5,7 +5,6 @@ import (
 	"database/sql"
 
 	"github.com/RohanDoshi21/messaging-platform/models"
-	M "github.com/RohanDoshi21/messaging-platform/models"
 	T "github.com/RohanDoshi21/messaging-platform/types"
 	U "github.com/RohanDoshi21/messaging-platform/util"
 	"github.com/gofiber/fiber/v2"
@@ -36,7 +35,7 @@ func GetGroupDetails(groupBody *GroupBody, dbTrx *sql.Tx) (interface{}, *T.Servi
 
 	ctx := context.Background()
 
-	isExist, err := M.GroupExists(ctx, dbTrx, groupBody.GroupId)
+	isExist, err := models.GroupExists(ctx, dbTrx, groupBody.GroupId)
 	if err != nil {
 		return nil, &T.ServiceError{
 			Code:    500,
@@ -111,7 +110,7 @@ func JoinGroup(groupBody *GroupJoinBody, dbTrx *sql.Tx) *T.ServiceError {
 
 	ctx := context.Background()
 
-	isExist, err := M.GroupExists(ctx, dbTrx, groupBody.GroupId)
+	isExist, err := models.GroupExists(ctx, dbTrx, groupBody.GroupId)
 	if err != nil {
 		return &T.ServiceError{
 			Code:    500,
@@ -178,18 +177,16 @@ func JoinGroup(groupBody *GroupJoinBody, dbTrx *sql.Tx) *T.ServiceError {
 					}
 				}
 				return nil
-			} else {
-				return &T.ServiceError{
-					Code:    fiber.ErrBadRequest.Code,
-					Message: "User not invited",
-					Error:   nil,
-				}
 			}
 
 		}
 	}
 
-	return nil
+	return &T.ServiceError{
+		Code:    fiber.ErrBadRequest.Code,
+		Message: "User not invited",
+		Error:   nil,
+	}
 
 }
 
@@ -197,7 +194,7 @@ func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) (string, strin
 
 	ctx := context.Background()
 
-	isExist, err := M.GroupExists(ctx, dbTrx, addUserBody.GroupId)
+	isExist, err := models.GroupExists(ctx, dbTrx, addUserBody.GroupId)
 	if err != nil {
 		return "", "", &T.ServiceError{
 			Code:    500,
@@ -260,7 +257,7 @@ func GetGroupUsers(groupBody *GroupBody, dbTrx *sql.Tx) ([]string, *T.ServiceErr
 
 	ctx := context.Background()
 
-	isExist, err := M.GroupExists(ctx, dbTrx, groupBody.GroupId)
+	isExist, err := models.GroupExists(ctx, dbTrx, groupBody.GroupId)
 	if err != nil {
 		return nil, &T.ServiceError{
 			Code:    500,

@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/RohanDoshi21/messaging-platform/api/service"
 	S "github.com/RohanDoshi21/messaging-platform/api/service"
 	pb "github.com/RohanDoshi21/messaging-platform/proto"
 	lgr "github.com/sirupsen/logrus"
@@ -131,6 +132,8 @@ func main() {
 
 		doneGRPC <- true
 	}()
+
+	service.InitMQTT()
 
 	<-doneAPI
 	<-doneGRPC
