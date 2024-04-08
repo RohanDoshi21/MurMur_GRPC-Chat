@@ -25,6 +25,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	doneAPI  = make(chan bool)
+	doneGRPC = make(chan bool)
+)
+
 // Gives the API server certificate bytes from the local filesystem (TODO: DB impl)
 func GetAPIServerCert(config C.Config) ([]byte, error) {
 	serverCertLoc := config.CASDOOR_CERTIFICATE
@@ -84,42 +89,49 @@ func main() {
 		lgr.Fatalln("Error while setting up auth config!", err)
 	}
 
-	app := fiber.New(fiber.Config{
-		Immutable:    true,
-		ErrorHandler: handler.ErrorHandler,
-	})
+	go func() {
+		app := fiber.New(fiber.Config{
+			Immutable:    true,
+			ErrorHandler: handler.ErrorHandler,
+		})
 
-	app.Use(cors.New(cors.Config{
-		AllowCredentials: true,
-		AllowOrigins:     "http://localhost:3000",
-		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-		AllowHeaders:     "Origin, Content-Type, Accept, Accept-Language, Content-Length, Authorization",
-	}))
+		app.Use(cors.New())
 
-	app.Use(requestid.New())
+		app.Use(requestid.New())
 
-	routes.RouteSetup(app)
+		routes.RouteSetup(app)
 
-	app.Listen(":" + fmt.Sprint(configValues.APP_PORT))
+		app.Listen(":" + fmt.Sprint(configValues.APP_PORT))
+		fmt.Println("Server Starting on Port " + ":" + fmt.Sprint(configValues.APP_PORT))
 
-	// Start the server
-	// GRPC Server
-	server := &S.GrpcServer{
-		Clients: make(map[string]pb.GrpcServerService_SendMessageServer),
-	}
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(server.UnaryAuthInterceptor),
-		grpc.StreamInterceptor(server.StreamAuthInterceptor),
-	)
-	pb.RegisterGrpcServerServiceServer(grpcServer, server)
-	reflection.Register(grpcServer)
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", configValues.GRPC_PORT))
-	if err != nil {
-		log.Fatal("Error creating server", err)
-	}
-	log.Printf("gRPC server listening on %s", fmt.Sprintf(":%d", configValues.GRPC_PORT))
-	err = grpcServer.Serve(listener)
-	if err != nil {
-		log.Fatal("Error serving gRPC server", err)
-	}
+		doneAPI <- true
+	}()
+
+	go func() {
+		// Start the server
+		// GRPC Server
+		server := &S.GrpcServer{
+			Clients: make(map[string]pb.GrpcServerService_SendMessageServer),
+		}
+		grpcServer := grpc.NewServer(
+			grpc.UnaryInterceptor(server.UnaryAuthInterceptor),
+			grpc.StreamInterceptor(server.StreamAuthInterceptor),
+		)
+		pb.RegisterGrpcServerServiceServer(grpcServer, server)
+		reflection.Register(grpcServer)
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", configValues.GRPC_PORT))
+		if err != nil {
+			log.Fatal("Error creating server", err)
+		}
+		log.Printf("gRPC server listening on %s", fmt.Sprintf(":%d", configValues.GRPC_PORT))
+		err = grpcServer.Serve(listener)
+		if err != nil {
+			log.Fatal("Error serving gRPC server", err)
+		}
+
+		doneGRPC <- true
+	}()
+
+	<-doneAPI
+	<-doneGRPC
 }

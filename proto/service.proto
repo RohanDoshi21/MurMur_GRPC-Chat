@@ -7,12 +7,16 @@ message Message{
     string sender=2;
     string receiver=3;
     string message=4;
+    string group_id=5;
+    bool is_group=6;
 }
 
 message SendMessageRequest{
     string message=1;
     string reciever=2;
-    string username = 3;
+    string username=3;
+    string group_id=5;
+    bool is_group=6;
 }
 
 service GrpcServerService {

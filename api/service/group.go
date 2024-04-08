@@ -254,3 +254,42 @@ func AddUserToGroup(addUserBody *GroupAddUserBody, dbTrx *sql.Tx) *T.ServiceErro
 	return nil
 
 }
+
+// Get UserId for a particular group
+func GetGroupUsers(groupBody *GroupBody, dbTrx *sql.Tx) ([]string, *T.ServiceError) {
+
+	ctx := context.Background()
+
+	isExist, err := M.GroupExists(ctx, dbTrx, groupBody.GroupId)
+	if err != nil {
+		return nil, &T.ServiceError{
+			Code:    500,
+			Message: "Failed to fetch group",
+			Error:   err,
+		}
+	}
+
+	if !isExist {
+		return nil, &T.ServiceError{
+			Code:    fiber.ErrBadRequest.Code,
+			Message: "Group not found",
+			Error:   err,
+		}
+	}
+
+	group, err := models.Groups(models.GroupWhere.ID.EQ(groupBody.GroupId)).One(ctx, dbTrx)
+	if err != nil {
+		return nil, &T.ServiceError{
+			Code:    fiber.ErrInternalServerError.Code,
+			Message: "Failed to fetch group",
+			Error:   err,
+		}
+	}
+
+	var users []string
+	for _, user := range group.Users {
+		users = append(users, user)
+	}
+
+	return users, nil
+}

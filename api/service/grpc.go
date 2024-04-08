@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/RohanDoshi21/messaging-platform/db"
 	pb "github.com/RohanDoshi21/messaging-platform/proto"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/google/uuid"
@@ -51,48 +52,98 @@ func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageSer
 			return status.Errorf(codes.Internal, "Error receiving message: %v", err)
 		}
 
-		// Find the receiver by username.
-		server.mu.Lock()
-		receiver, ok := server.Clients[message.Reciever]
-		if !ok {
-			// If the receiver or sender is not found, send an error message back to the sender.
-			// Avoid Deadlock of the server
+		if !message.IsGroup {
+
+			// Find the receiver by username.
+			server.mu.Lock()
+			receiver, ok := server.Clients[message.Reciever]
+			if !ok {
+				// If the receiver or sender is not found, send an error message back to the sender.
+				// Avoid Deadlock of the server
+				server.mu.Unlock()
+				continue
+			}
+
+			sender, ok := server.Clients[payload]
 			server.mu.Unlock()
-			continue
-		}
 
-		sender, ok := server.Clients[payload]
-		server.mu.Unlock()
+			if !ok {
+				// If the receiver or sender is not found, send an error message back to the sender.
+				continue
+			}
 
-		if !ok {
-			// If the receiver or sender is not found, send an error message back to the sender.
-			continue
-		}
+			messageUUID := uuid.New().String()
 
-		messageUUID := uuid.New().String()
+			// Forward the message to the receiver.
+			err = receiver.Send(&pb.Message{
+				Sender:   payload,
+				Receiver: message.Reciever,
+				Message:  message.Message,
+				Id:       messageUUID,
+			})
+			if err != nil {
+				log.Printf("Error sending message to %s: %v", message.Reciever, err)
+				continue
+			}
 
-		// Forward the message to the receiver.
-		err = receiver.Send(&pb.Message{
-			Sender:   payload,
-			Receiver: message.Reciever,
-			Message:  message.Message,
-			Id:       messageUUID,
-		})
-		if err != nil {
-			log.Printf("Error sending message to %s: %v", message.Reciever, err)
-			continue
-		}
+			// Send the same message back to the sender as a confirmation.
+			err = sender.Send(&pb.Message{
+				Sender:   payload,
+				Receiver: message.Reciever,
+				Message:  message.Message,
+				Id:       messageUUID,
+			})
+			if err != nil {
+				log.Printf("Error sending confirmation message to %s: %v", payload, err)
+				continue
+			}
+		} else {
+			// GET list of all the users in the group
+			groupId := message.GroupId
 
-		// Send the same message back to the sender as a confirmation.
-		err = sender.Send(&pb.Message{
-			Sender:   payload,
-			Receiver: message.Reciever,
-			Message:  message.Message,
-			Id:       messageUUID,
-		})
-		if err != nil {
-			log.Printf("Error sending confirmation message to %s: %v", payload, err)
-			continue
+			trx, err := db.PostgresConn.BeginTx(stream.Context(), nil)
+			if err != nil {
+				return status.Errorf(codes.Internal, "Error starting transaction: %v", err)
+			}
+
+			userIds, err2 := GetGroupUsers(&GroupBody{GroupId: groupId}, trx)
+			if err2 != nil {
+				trx.Rollback()
+				return status.Errorf(codes.Internal, "Error getting group users: %v", err)
+			} else {
+				trx.Commit()
+			}
+
+			messageUUID := uuid.New().String()
+
+			// Send Message to each User in the group
+			for _, userId := range userIds {
+				server.mu.Lock()
+				receiver, ok := server.Clients[userId]
+				if !ok {
+					// If the receiver or sender is not found, send an error message back to the sender.
+					// Avoid Deadlock of the server
+					server.mu.Unlock()
+					continue
+				}
+				server.mu.Unlock()
+
+				if !ok {
+					// If the receiver or sender is not found, send an error message back to the sender.
+					continue
+				}
+				// Forward the message to the receiver.
+				err = receiver.Send(&pb.Message{
+					Sender:   payload,
+					Receiver: userId,
+					Message:  message.Message,
+					Id:       messageUUID,
+				})
+				if err != nil {
+					log.Printf("Error sending message to %s: %v", userId, err)
+					continue
+				}
+			}
 		}
 	}
 
