@@ -16,4 +16,7 @@ func RouteSetup(app *fiber.App) {
 
 	userGroup := app.Group("/user")
 	setupUserRoutes(userGroup)
+
+	groupChat := app.Group("/group")
+	setupGroupRoutes(groupChat)
 }
