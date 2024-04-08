@@ -30,5 +30,10 @@ services:
       timeout: 5s
       retries: 5
 
+  broker:
+    image: mochimqtt/server:latest
+    ports:
+      - "1883:1883"
+
 volumes:
   db-volume-casdoor: {}

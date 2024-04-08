@@ -35,7 +35,8 @@ type Config struct {
 	CASDOOR_ORG_NAME      string
 	CASDOOR_APP_NAME      string
 
-	APP_PORT int
+	APP_PORT  int
+	GRPC_PORT int
 }
 
 var Conf = &Config{}
@@ -62,6 +63,7 @@ func Init() (*Config, error) {
 	Conf.CASDOOR_APP_NAME = vars.mandatory("CASDOOR_APP_NAME")
 
 	Conf.APP_PORT = vars.mandatoryInt("APP_PORT")
+	Conf.GRPC_PORT = vars.mandatoryInt("GRPC_PORT")
 
 	if len(vars.missing) > 0 {
 		return nil, fmt.Errorf("missing environment variables: %v", vars.missing)
