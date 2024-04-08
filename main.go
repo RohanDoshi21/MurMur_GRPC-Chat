@@ -4,9 +4,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net"
 	"os"
 
+	S "github.com/RohanDoshi21/messaging-platform/api/service"
+	pb "github.com/RohanDoshi21/messaging-platform/proto"
 	lgr "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/RohanDoshi21/messaging-platform/api/routes"
 	C "github.com/RohanDoshi21/messaging-platform/config"
@@ -95,4 +101,25 @@ func main() {
 	routes.RouteSetup(app)
 
 	app.Listen(":" + fmt.Sprint(configValues.APP_PORT))
+
+	// Start the server
+	// GRPC Server
+	server := &S.GrpcServer{
+		Clients: make(map[string]pb.GrpcServerService_SendMessageServer),
+	}
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(server.UnaryAuthInterceptor),
+		grpc.StreamInterceptor(server.StreamAuthInterceptor),
+	)
+	pb.RegisterGrpcServerServiceServer(grpcServer, server)
+	reflection.Register(grpcServer)
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", configValues.GRPC_PORT))
+	if err != nil {
+		log.Fatal("Error creating server", err)
+	}
+	log.Printf("gRPC server listening on %s", fmt.Sprintf(":%d", configValues.GRPC_PORT))
+	err = grpcServer.Serve(listener)
+	if err != nil {
+		log.Fatal("Error serving gRPC server", err)
+	}
 }

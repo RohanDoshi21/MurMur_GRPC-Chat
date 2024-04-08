@@ -1,0 +1,20 @@
+syntax="proto3";
+package pb;
+option go_package="protocol/pb";
+
+message Message{
+    string id=1;
+    string sender=2;
+    string receiver=3;
+    string message=4;
+}
+
+message SendMessageRequest{
+    string message=1;
+    string reciever=2;
+    string username = 3;
+}
+
+service GrpcServerService {
+    rpc SendMessage(stream SendMessageRequest) returns (stream Message){};
+}
