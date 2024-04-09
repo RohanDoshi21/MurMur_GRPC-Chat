@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -27,7 +28,12 @@ type MQTTMessage struct {
 	Sender  string
 }
 
-func SendNotification(payload string, userId string) {
-	token = client.Publish(fmt.Sprintf("message/%s", userId), 0, false, payload)
+func SendNotification(payload *NotifBody) {
+	marshalPayload, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	token = client.Publish(fmt.Sprintf("message/%s", payload.Receiver), 0, false, marshalPayload)
 	token.Wait()
 }

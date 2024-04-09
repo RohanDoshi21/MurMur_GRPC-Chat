@@ -9,8 +9,8 @@ import (
 
 	"github.com/RohanDoshi21/messaging-platform/db"
 	pb "github.com/RohanDoshi21/messaging-platform/proto"
+	U "github.com/RohanDoshi21/messaging-platform/util"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -25,6 +25,13 @@ type GrpcServer struct {
 
 type Payload struct {
 	Username string
+}
+
+type NotifBody struct {
+	Message  string
+	Sender   string
+	Receiver string
+	GroupId  string
 }
 
 func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageServer) error {
@@ -72,7 +79,7 @@ func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageSer
 				continue
 			}
 
-			messageUUID := uuid.New().String()
+			messageUUID := U.UUID()
 
 			// Forward the message to the receiver.
 			err = receiver.Send(&pb.Message{
@@ -82,7 +89,14 @@ func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageSer
 				Id:       messageUUID,
 			})
 
-			go SendNotification(message.Message, message.Reciever)
+			// Send Notification to the receiver
+			notif := &NotifBody{
+				Message:  message.Message,
+				Sender:   payload,
+				Receiver: message.Reciever,
+			}
+
+			go SendNotification(notif)
 
 			if err != nil {
 				log.Printf("Error sending message to %s: %v", message.Reciever, err)
@@ -117,7 +131,7 @@ func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageSer
 				trx.Commit()
 			}
 
-			messageUUID := uuid.New().String()
+			messageUUID := U.UUID()
 
 			// Send Message to each User in the group
 			for _, userId := range userIds {
@@ -144,8 +158,16 @@ func (server *GrpcServer) SendMessage(stream pb.GrpcServerService_SendMessageSer
 					IsGroup:  true,
 					GroupId:  groupId,
 				})
-
-				go SendNotification(message.Message, userId)
+				// Send Notification to the receiver
+				notif := &NotifBody{
+					Message:  message.Message,
+					Sender:   payload,
+					Receiver: userId,
+					GroupId:  groupId,
+				}
+				if userId != payload {
+					go SendNotification(notif)
+				}
 
 				if err != nil {
 					log.Printf("Error sending message to %s: %v", userId, err)
