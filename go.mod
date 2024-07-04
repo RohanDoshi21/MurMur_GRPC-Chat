@@ -6,7 +6,7 @@ require (
 	github.com/casdoor/casdoor-go-sdk v0.41.0
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/friendsofgo/errors v0.9.2
-	github.com/gofiber/fiber/v2 v2.52.4
+	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/lib/pq v1.10.9
 	github.com/volatiletech/null/v8 v8.1.2
 	github.com/volatiletech/sqlboiler/v4 v4.16.2
